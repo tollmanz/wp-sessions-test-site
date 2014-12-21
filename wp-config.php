@@ -1,7 +1,7 @@
 <?php
 // Load sensitive data from a location outside the repo
-if ( file_exists( '../zdt-me-config.php' ) ) {
-	require_once( '../zdt-me-config.php' );
+if ( file_exists( dirname(__FILE__) . '/../zdt-me-config.php' ) ) {
+	require_once( dirname(__FILE__) . '/../zdt-me-config.php' );
 }
 
 /** Absolute path to the WordPress directory. */
