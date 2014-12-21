@@ -103,6 +103,10 @@ function twentyfifteen_entry_meta() {
 				$tags_list
 			);
 		}
+
+		if ( function_exists( 'the_views' ) ) {
+			the_views();
+		}
 	}
 
 	if ( is_attachment() && wp_attachment_is_image() ) {
