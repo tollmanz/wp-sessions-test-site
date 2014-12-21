@@ -5729,3 +5729,11 @@ p > video {
 		padding: 3.84615% 0;
 	}
 }
+
+.single #qm-wrapper,
+.home #qm-wrapper,
+.archive #qm-wrapper {
+	float: left;
+	margin-left: 29.4118%;
+	width: 70.5882%;
+}
