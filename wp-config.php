@@ -11,6 +11,8 @@ $memcached_servers = array(
 	),
 );
 
+define( 'WP_CACHE', true );
+
 /** Absolute path to the WordPress directory. */
 if ( !defined('ABSPATH') )
 	define('ABSPATH', dirname(__FILE__) . '/');
