@@ -5,14 +5,12 @@ function zdt_move_jquery() {
 		wp_deregister_script( 'jquery' );
 		wp_register_script(
 			'jquery',
-			false,
-			array(
-				'jquery-core',
-			),
+			site_url( '/wp-includes/js/jquery/jquery.js' ),
+			array(),
 			'1.11.1',
 			true
 		);
 	}
 }
 
-add_action( 'init', 'zdt_move_jquery', 1 );
+add_action( 'init', 'zdt_move_jquery', 11 );
