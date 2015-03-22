@@ -1,7 +1,6 @@
 <?php
 /*
-
-Copyright 2014 John Blackbourn
+Copyright 2009-2015 John Blackbourn
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,21 +18,22 @@ class QM_Output_Html_Admin extends QM_Output_Html {
 
 	public function __construct( QM_Collector $collector ) {
 		parent::__construct( $collector );
-		add_filter( 'query_monitor_menus', array( $this, 'admin_menu' ), 60 );
+		add_filter( 'qm/output/menus', array( $this, 'admin_menu' ), 60 );
 	}
 
 	public function output() {
 
 		$data = $this->collector->get_data();
 
-		if ( empty( $data ) )
+		if ( empty( $data['current_screen'] ) ) {
 			return;
+		}
 
-		echo '<div class="qm qm-half" id="' . $this->collector->id() . '">';
+		echo '<div class="qm qm-half" id="' . esc_attr( $this->collector->id() ) . '">';
 		echo '<table cellspacing="0">';
 		echo '<thead>';
 		echo '<tr>';
-		echo '<th colspan="2">' . $this->collector->name() . '</th>';
+		echo '<th colspan="2">' . esc_html( $this->collector->name() ) . '</th>';
 		echo '</tr>';
 		echo '</thead>';
 		echo '<tbody>';
@@ -79,24 +79,27 @@ class QM_Output_Html_Admin extends QM_Output_Html {
 
 			# And now, WordPress' legendary inconsistency comes into play:
 
-			if ( !empty( $data['current_screen']->taxonomy ) )
+			if ( !empty( $data['current_screen']->taxonomy ) ) {
 				$col = $data['current_screen']->taxonomy;
-			else if ( !empty( $data['current_screen']->post_type ) )
+			} else if ( !empty( $data['current_screen']->post_type ) ) {
 				$col = $data['current_screen']->post_type . '_posts';
-			else
+			} else {
 				$col = $data['current_screen']->base;
+			}
 
-			if ( !empty( $data['current_screen']->post_type ) and empty( $data['current_screen']->taxonomy ) )
+			if ( !empty( $data['current_screen']->post_type ) and empty( $data['current_screen']->taxonomy ) ) {
 				$cols = $data['current_screen']->post_type . '_posts';
-			else
+			} else {
 				$cols = $data['current_screen']->id;
+			}
 
-			if ( 'edit-comments' == $col )
+			if ( 'edit-comments' == $col ) {
 				$col = 'comments';
-			else if ( 'upload' == $col )
+			} else if ( 'upload' == $col ) {
 				$col = 'media';
-			else if ( 'link-manager' == $col )
+			} else if ( 'link-manager' == $col ) {
 				$col = 'link';
+			}
 
 			echo '<tr>';
 			echo '<td rowspan="2">' . __( 'Column Filters', 'query-monitor' ) . '</td>';
@@ -119,19 +122,13 @@ class QM_Output_Html_Admin extends QM_Output_Html {
 
 	}
 
-	public function admin_menu( array $menu ) {
+}
 
-		$menu[] = $this->menu( array(
-			'title' => __( 'Admin Screen', 'query-monitor' ),
-		) );
-		return $menu;
-
+function register_qm_output_html_admin( array $output, QM_Collectors $collectors ) {
+	if ( $collector = $collectors::get( 'admin' ) ) {
+		$output['admin'] = new QM_Output_Html_Admin( $collector );
 	}
-
+	return $output;
 }
 
-function register_qm_output_html_admin( QM_Output $output = null, QM_Collector $collector ) {
-	return new QM_Output_Html_Admin( $collector );
-}
-
-add_filter( 'query_monitor_output_html_admin', 'register_qm_output_html_admin', 10, 2 );
+add_filter( 'qm/outputter/html', 'register_qm_output_html_admin', 70, 2 );

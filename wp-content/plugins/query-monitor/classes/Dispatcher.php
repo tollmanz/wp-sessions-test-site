@@ -1,7 +1,6 @@
 <?php
 /*
-
-Copyright 2014 John Blackbourn
+Copyright 2009-2015 John Blackbourn
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,10 +14,16 @@ GNU General Public License for more details.
 
 */
 
+if ( ! class_exists( 'QM_Dispatcher' ) ) {
 abstract class QM_Dispatcher {
 
 	public function __construct( QM_Plugin $qm ) {
 		$this->qm = $qm;
+
+		if ( !defined( 'QM_COOKIE' ) ) {
+			define( 'QM_COOKIE', 'query_monitor_' . COOKIEHASH );
+		}
+
 	}
 
 	abstract public function is_active();
@@ -35,23 +40,33 @@ abstract class QM_Dispatcher {
 		// nothing
 	}
 
-	abstract public function get_outputter( QM_Collector $collector );
+	public function user_can_view() {
 
-	public function output( QM_Collector $collector ) {
-
-		$filter = 'query_monitor_output_' . $this->id . '_' . $collector->id;
-		$output = apply_filters( $filter, null, $collector );
-
-		if ( false === $output ) {
-			return;
+		if ( !did_action( 'plugins_loaded' ) ) {
+			return false;
 		}
 
-		if ( !is_a( $output, 'QM_Output' ) ) {
-			$output = $this->get_outputter( $collector );
+		if ( current_user_can( 'view_query_monitor' ) ) {
+			return true;
 		}
 
-		$output->output();
+		return $this->user_verified();
 
 	}
 
+	public function user_verified() {
+		if ( isset( $_COOKIE[QM_COOKIE] ) ) {
+			return $this->verify_cookie( stripslashes( $_COOKIE[QM_COOKIE] ) );
+		}
+		return false;
+	}
+
+	public static function verify_cookie( $value ) {
+		if ( $old_user_id = wp_validate_auth_cookie( $value, 'logged_in' ) ) {
+			return user_can( $old_user_id, 'view_query_monitor' );
+		}
+		return false;
+	}
+
+}
 }

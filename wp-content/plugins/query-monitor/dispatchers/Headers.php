@@ -1,7 +1,6 @@
 <?php
 /*
-
-Copyright 2014 John Blackbourn
+Copyright 2009-2015 John Blackbourn
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,7 +24,7 @@ class QM_Dispatcher_Headers extends QM_Dispatcher {
 
 	public function init() {
 
-		if ( ! $this->qm->user_can_view() ) {
+		if ( ! $this->user_can_view() ) {
 			return;
 		}
 
@@ -39,9 +38,7 @@ class QM_Dispatcher_Headers extends QM_Dispatcher {
 
 		require_once $this->qm->plugin_path( 'output/Headers.php' );
 
-		foreach ( glob( $this->qm->plugin_path( 'output/headers/*.php' ) ) as $output ) {
-			include $output;
-		}
+		QM_Util::include_files( $this->qm->plugin_path( 'output/headers' ) );
 
 	}
 
@@ -54,13 +51,9 @@ class QM_Dispatcher_Headers extends QM_Dispatcher {
 
 	}
 
-	public function get_outputter( QM_Collector $collector ) {
-		return new QM_Output_Headers( $collector );
-	}
-
 	public function is_active() {
 
-		if ( ! $this->qm->user_can_view() ) {
+		if ( ! $this->user_can_view() ) {
 			return false;
 		}
 
@@ -80,4 +73,4 @@ function register_qm_dispatcher_headers( array $dispatchers, QM_Plugin $qm ) {
 	return $dispatchers;
 }
 
-add_filter( 'query_monitor_dispatchers', 'register_qm_dispatcher_headers', 10, 2 );
+add_filter( 'qm/dispatchers', 'register_qm_dispatcher_headers', 10, 2 );

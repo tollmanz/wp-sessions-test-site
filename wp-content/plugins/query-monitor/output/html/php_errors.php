@@ -1,7 +1,6 @@
 <?php
 /*
-
-Copyright 2014 John Blackbourn
+Copyright 2009-2015 John Blackbourn
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,23 +18,24 @@ class QM_Output_Html_PHP_Errors extends QM_Output_Html {
 
 	public function __construct( QM_Collector $collector ) {
 		parent::__construct( $collector );
-		add_filter( 'query_monitor_menus', array( $this, 'admin_menu' ), 10 );
-		add_filter( 'query_monitor_class', array( $this, 'admin_class' ) );
+		add_filter( 'qm/output/menus', array( $this, 'admin_menu' ), 10 );
+		add_filter( 'qm/output/menu_class', array( $this, 'admin_class' ) );
 	}
 
 	public function output() {
 
 		$data = $this->collector->get_data();
 
-		if ( empty( $data['errors'] ) )
+		if ( empty( $data['errors'] ) ) {
 			return;
+		}
 
-		echo '<div class="qm" id="' . $this->collector->id() . '">';
+		echo '<div class="qm" id="' . esc_attr( $this->collector->id() ) . '">';
 		echo '<table cellspacing="0">';
 		echo '<thead>';
 		echo '<tr>';
 		echo '<th colspan="2">' . __( 'PHP Error', 'query-monitor' ) . '</th>';
-		echo '<th>' . __( 'Count', 'query-monitor' ) . '</th>';
+		echo '<th class="qm-num">' . __( 'Count', 'query-monitor' ) . '</th>';
 		echo '<th>' . __( 'Location', 'query-monitor' ) . '</th>';
 		echo '<th>' . __( 'Call Stack', 'query-monitor' ) . '</th>';
 		echo '<th>' . __( 'Component', 'query-monitor' ) . '</th>';
@@ -60,11 +60,17 @@ class QM_Output_Html_PHP_Errors extends QM_Output_Html {
 
 				foreach ( $data['errors'][$type] as $error ) {
 
-					if ( !$first )
+					if ( !$first ) {
 						echo '<tr>';
+					}
 
 					$stack     = $error->trace->get_stack();
 					$component = $error->trace->get_component();
+					if ( $component ) {
+						$name = $component->name;
+					} else {
+						$name = '<em>' . __( 'Unknown', 'query-monitor' ) . '</em>';
+					}
 					$stack     = implode( '<br>', $stack );
 					$message   = str_replace( "href='function.", "target='_blank' href='http://php.net/function.", $error->message );
 
@@ -75,8 +81,8 @@ class QM_Output_Html_PHP_Errors extends QM_Output_Html {
 					echo '<td>';
 					echo self::output_filename( $output, $error->file, $error->line );
 					echo '</td>';
-					echo '<td class="qm-ltr">' . $stack . '</td>';
-					echo '<td>' . $component->name . '</td>';
+					echo '<td class="qm-nowrap qm-ltr">' . $stack . '</td>';
+					echo '<td class="qm-nowrap">' . $name . '</td>';
 					echo '</tr>';
 
 					$first = false;
@@ -97,14 +103,15 @@ class QM_Output_Html_PHP_Errors extends QM_Output_Html {
 
 		$data = $this->collector->get_data();
 
-		if ( isset( $data['errors']['warning'] ) )
+		if ( isset( $data['errors']['warning'] ) ) {
 			$class[] = 'qm-warning';
-		else if ( isset( $data['errors']['notice'] ) )
+		} else if ( isset( $data['errors']['notice'] ) ) {
 			$class[] = 'qm-notice';
-		else if ( isset( $data['errors']['strict'] ) )
+		} else if ( isset( $data['errors']['strict'] ) ) {
 			$class[] = 'qm-strict';
-		else if ( isset( $data['errors']['deprecated'] ) )
+		} else if ( isset( $data['errors']['deprecated'] ) ) {
 			$class[] = 'qm-deprecated';
+		}
 
 		return $class;
 
@@ -144,8 +151,11 @@ class QM_Output_Html_PHP_Errors extends QM_Output_Html {
 
 }
 
-function register_qm_output_html_php_errors( QM_Output $output = null, QM_Collector $collector ) {
-	return new QM_Output_Html_PHP_Errors( $collector );
+function register_qm_output_html_php_errors( array $output, QM_Collectors $collectors ) {
+	if ( $collector = $collectors::get( 'php_errors' ) ) {
+		$output['php_errors'] = new QM_Output_Html_PHP_Errors( $collector );
+	}
+	return $output;
 }
 
-add_filter( 'query_monitor_output_html_php_errors', 'register_qm_output_html_php_errors', 10, 2 );
+add_filter( 'qm/outputter/html', 'register_qm_output_html_php_errors', 110, 2 );

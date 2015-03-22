@@ -1,6 +1,6 @@
 <?php
 /*
-Copyright 2014 John Blackbourn
+Copyright 2009-2015 John Blackbourn
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,19 +18,23 @@ class QM_Collector_Request extends QM_Collector {
 
 	public $id = 'request';
 
-	public function __construct() {
-		parent::__construct();
-	}
-
 	public function name() {
 		return __( 'Request', 'query-monitor' );
 	}
 
 	public function process() {
 
-		global $wp, $wp_query;
+		global $wp, $wp_query, $current_blog, $current_site;
 
 		$qo = get_queried_object();
+
+		if ( is_multisite() ) {
+			$this->data['multisite']['current_blog'] = $current_blog;
+		}
+
+		if ( QM_Util::is_multi_network() ) {
+			$this->data['multisite']['current_site'] = $current_site;
+		}
 
 		if ( is_admin() ) {
 			$this->data['request']['request'] = $_SERVER['REQUEST_URI'];
@@ -49,11 +53,13 @@ class QM_Collector_Request extends QM_Collector {
 
 		foreach ( $qvars as $k => $v ) {
 			if ( isset( $plugin_qvars[$k] ) ) {
-				if ( '' !== $v )
+				if ( '' !== $v ) {
 					$query_vars[$k] = $v;
+				}
 			} else {
-				if ( !empty( $v ) )
+				if ( !empty( $v ) ) {
 					$query_vars[$k] = $v;
+				}
 			}
 		}
 
@@ -69,8 +75,9 @@ class QM_Collector_Request extends QM_Collector {
 
 		# Now add all other vars to $this->data['qvars']:
 		foreach ( $query_vars as $k => $v ) {
-			if ( !isset( $plugin_qvars[$k] ) )
+			if ( !isset( $plugin_qvars[$k] ) ) {
 				$this->data['qvars'][$k] = $v;
+			}
 		}
 
 		switch ( true ) {
@@ -126,9 +133,9 @@ class QM_Collector_Request extends QM_Collector {
 
 }
 
-function register_qm_collector_request( array $qm ) {
-	$qm['request'] = new QM_Collector_Request;
-	return $qm;
+function register_qm_collector_request( array $collectors, QueryMonitor $qm ) {
+	$collectors['request'] = new QM_Collector_Request;
+	return $collectors;
 }
 
-add_filter( 'query_monitor_collectors', 'register_qm_collector_request', 60 );
+add_filter( 'qm/collectors', 'register_qm_collector_request', 10, 2 );

@@ -1,7 +1,6 @@
 <?php
 /*
-
-Copyright 2014 John Blackbourn
+Copyright 2009-2015 John Blackbourn
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,29 +20,32 @@ class QM_Output_Html_Hooks extends QM_Output_Html {
 
 	public function __construct( QM_Collector $collector ) {
 		parent::__construct( $collector );
-		add_filter( 'query_monitor_menus', array( $this, 'admin_menu' ), 70 );
+		add_filter( 'qm/output/menus', array( $this, 'admin_menu' ), 80 );
+		add_filter( 'qm/output/menu_class', array( $this, 'admin_class' ) );
 	}
 
 	public function output() {
 
 		$data = $this->collector->get_data();
 
-		if ( empty( $data ) )
+		if ( empty( $data['hooks'] ) ) {
 			return;
+		}
 
 		$row_attr = array();
 
-		if ( is_multisite() and is_network_admin() )
+		if ( is_multisite() and is_network_admin() ) {
 			$screen = preg_replace( '|-network$|', '', $data['screen'] );
-		else
+		} else {
 			$screen = $data['screen'];
+		}
 
-		echo '<div class="qm" id="' . $this->collector->id() . '">';
+		echo '<div class="qm" id="' . esc_attr( $this->collector->id() ) . '">';
 		echo '<table cellspacing="0">';
 		echo '<thead>';
 		echo '<tr>';
 		echo '<th>' . __( 'Hook', 'query-monitor' ) . $this->build_filter( 'name', $data['parts'] ) . '</th>';
-		echo '<th colspan="3">' . __( 'Actions', 'query-monitor' ) . $this->build_filter( 'component', $data['components'] ) . '</th>';
+		echo '<th colspan="3">' . __( 'Actions', 'query-monitor' ) . $this->build_filter( 'component', $data['components'], 'subject' ) . '</th>';
 		echo '</tr>';
 		echo '</thead>';
 		echo '<tbody>';
@@ -52,44 +54,59 @@ class QM_Output_Html_Hooks extends QM_Output_Html {
 
 			if ( !empty( $screen ) ) {
 
-				if ( false !== strpos( $hook['name'], $screen . '.php' ) )
+				if ( false !== strpos( $hook['name'], $screen . '.php' ) ) {
 					$hook['name'] = str_replace( '-' . $screen . '.php', '-<span class="qm-current">' . $screen . '.php</span>', $hook['name'] );
-				else
+				} else {
 					$hook['name'] = str_replace( '-' . $screen, '-<span class="qm-current">' . $screen . '</span>', $hook['name'] );
+				}
 
 			}
 
-			$row_attr['data-qm-hooks-name']      = implode( ' ', $hook['parts'] );
-			$row_attr['data-qm-hooks-component'] = implode( ' ', $hook['components'] );
+			$row_attr['data-qm-name']      = implode( ' ', $hook['parts'] );
+			$row_attr['data-qm-component'] = implode( ' ', $hook['components'] );
 
 			$attr = '';
 
-			if ( !empty( $hook['actions'] ) )
+			if ( !empty( $hook['actions'] ) ) {
 				$rowspan = count( $hook['actions'] );
-			else
+			} else {
 				$rowspan = 1;
+			}
 
-			foreach ( $row_attr as $a => $v )
+			foreach ( $row_attr as $a => $v ) {
 				$attr .= ' ' . $a . '="' . esc_attr( $v ) . '"';
+			}
 
-			echo "<tr{$attr}>";
-
-			echo "<td valign='top' rowspan='{$rowspan}'>{$hook['name']}</td>";	
 			if ( !empty( $hook['actions'] ) ) {
 
 				$first = true;
 
 				foreach ( $hook['actions'] as $action ) {
 
-					if ( isset( $action['callback']['component'] ) )
+					if ( isset( $action['callback']['component'] ) ) {
 						$component = $action['callback']['component']->name;
-					else
+					} else {
 						$component = '';
+					}
 
-					if ( !$first )
-						echo "<tr{$attr}>";
+					$trattr = $attr . ' data-qm-subject="' . esc_attr( $component ) . '"';
 
-					echo '<td valign="top" class="qm-priority">' . $action['priority'] . '</td>';
+					echo "<tr{$trattr}>";
+
+					if ( $first ) {
+
+						echo "<th valign='top' rowspan='{$rowspan}'>";
+						echo $hook['name'];
+						if ( 'all' === $hook['name'] ) {
+							echo '<br><span class="qm-warn">';
+							_e( 'Warning: The <code>all</code> action is extremely resource intensive. Try to avoid using it.', 'query-monitor' );
+							echo '<span>';
+						}
+						echo '</th>';
+
+					}
+
+					echo '<td valign="top" class="qm-num">' . $action['priority'] . '</td>';
 					echo '<td valign="top" class="qm-ltr">';
 
 					if ( isset( $action['callback']['file'] ) ) {
@@ -107,7 +124,7 @@ class QM_Output_Html_Hooks extends QM_Output_Html {
 					}
 
 					echo '</td>';
-					echo '<td valign="top">';
+					echo '<td valign="top" class="qm-nowrap">';
 					echo esc_html( $component );
 					echo '</td>';
 					echo '</tr>';
@@ -115,9 +132,14 @@ class QM_Output_Html_Hooks extends QM_Output_Html {
 				}
 
 			} else {
+				echo "<tr{$attr}>";
+				echo "<th valign='top'>";
+				echo $hook['name'];
+				echo '</th>';
 				echo '<td colspan="3">&nbsp;</td>';
+				echo '</tr>';
 			}
-			echo '</tr>';
+
 		}
 
 		echo '</tbody>';
@@ -126,19 +148,42 @@ class QM_Output_Html_Hooks extends QM_Output_Html {
 
 	}
 
+	public function admin_class( array $class ) {
+
+		$data = $this->collector->get_data();
+
+		if ( isset( $data['warnings'] ) ) {
+			$class[] = 'qm-warning';
+		}
+
+		return $class;
+
+	}
+
 	public function admin_menu( array $menu ) {
 
-		$menu[] = $this->menu( array(
-			'title' => __( 'Hooks', 'query-monitor' )
-		) );
+		$data = $this->collector->get_data();
+		$args = array(
+			'title' => $this->collector->name(),
+		);
+
+		if ( isset( $data['warnings'] ) ) {
+			$args['meta']['classname'] = 'qm-warning';
+		}
+
+		$menu[] = $this->menu( $args );
+
 		return $menu;
 
 	}
 
 }
 
-function register_qm_output_html_hooks( QM_Output $output = null, QM_Collector $collector ) {
-	return new QM_Output_Html_Hooks( $collector );
+function register_qm_output_html_hooks( array $output, QM_Collectors $collectors ) {
+	if ( $collector = $collectors::get( 'hooks' ) ) {
+		$output['hooks'] = new QM_Output_Html_Hooks( $collector );
+	}
+	return $output;
 }
 
-add_filter( 'query_monitor_output_html_hooks', 'register_qm_output_html_hooks', 10, 2 );
+add_filter( 'qm/outputter/html', 'register_qm_output_html_hooks', 80, 2 );

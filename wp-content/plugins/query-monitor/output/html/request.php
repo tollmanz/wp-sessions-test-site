@@ -1,7 +1,6 @@
 <?php
 /*
-
-Copyright 2014 John Blackbourn
+Copyright 2009-2015 John Blackbourn
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,14 +18,14 @@ class QM_Output_Html_Request extends QM_Output_Html {
 
 	public function __construct( QM_Collector $collector ) {
 		parent::__construct( $collector );
-		add_filter( 'query_monitor_menus', array( $this, 'admin_menu' ), 50 );
+		add_filter( 'qm/output/menus', array( $this, 'admin_menu' ), 50 );
 	}
 
 	public function output() {
 
 		$data = $this->collector->get_data();
 
-		echo '<div class="qm qm-half" id="' . $this->collector->id() . '">';
+		echo '<div class="qm qm-half" id="' . esc_attr( $this->collector->id() ) . '">';
 		echo '<table cellspacing="0">';
 		echo '<tbody>';
 
@@ -37,8 +36,9 @@ class QM_Output_Html_Request extends QM_Output_Html {
 			'query_string'  => __( 'Query String', 'query-monitor' ),
 		) as $item => $name ) {
 
-			if ( !isset( $data['request'][$item] ) )
+			if ( !isset( $data['request'][$item] ) ) {
 				continue;
+			}
 
 			if ( ! empty( $data['request'][$item] ) ) {
 				if ( in_array( $item, array( 'request', 'matched_query', 'query_string' ) ) ) {
@@ -67,13 +67,15 @@ class QM_Output_Html_Request extends QM_Output_Html {
 
 			foreach( $data['qvars'] as $var => $value ) {
 
-				if ( !$first )
+				if ( !$first ) {
 					echo '<tr>';
+				}
 
-				if ( isset( $data['plugin_qvars'][$var] ) )
+				if ( isset( $data['plugin_qvars'][$var] ) ) {
 					echo "<td valign='top'><span class='qm-current'>{$var}</span></td>";
-				else
+				} else {
 					echo "<td valign='top'>{$var}</td>";
+				}
 
 				if ( is_array( $value ) or is_object( $value ) ) {
 					echo '<td valign="top"><pre>';
@@ -95,6 +97,34 @@ class QM_Output_Html_Request extends QM_Output_Html {
 			echo '<td colspan="2"><em>' . __( 'none', 'query-monitor' ) . '</em></td>';
 			echo '</tr>';
 
+		}
+
+		if ( !empty( $data['multisite'] ) ) {
+
+			$rowspan = count( $data['multisite'] );
+
+			echo '<tr>';
+			echo '<td rowspan="' . $rowspan . '">' . __( 'Multisite', 'query-monitor' ) . '</td>';
+
+			$first = true;
+
+			foreach( $data['multisite'] as $var => $value ) {
+
+				if ( !$first ) {
+					echo '<tr>';
+				}
+
+				echo "<td valign='top'>{$var}</td>";
+
+				echo '<td valign="top"><pre>';
+				print_r( $value );
+				echo '</pre></td>';
+
+				echo '</tr>';
+
+				$first = false;
+
+			}
 		}
 
 		if ( !empty( $data['queried_object'] ) ) {
@@ -139,8 +169,11 @@ class QM_Output_Html_Request extends QM_Output_Html {
 
 }
 
-function register_qm_output_html_request( QM_Output $output = null, QM_Collector $collector ) {
-	return new QM_Output_Html_Request( $collector );
+function register_qm_output_html_request( array $output, QM_Collectors $collectors ) {
+	if ( $collector = $collectors::get( 'request' ) ) {
+		$output['request'] = new QM_Output_Html_Request( $collector );
+	}
+	return $output;
 }
 
-add_filter( 'query_monitor_output_html_request', 'register_qm_output_html_request', 10, 2 );
+add_filter( 'qm/outputter/html', 'register_qm_output_html_request', 60, 2 );

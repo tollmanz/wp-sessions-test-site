@@ -1,7 +1,6 @@
 <?php
 /*
-
-Copyright 2014 John Blackbourn
+Copyright 2009-2015 John Blackbourn
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,8 +18,8 @@ class QM_Output_Html_HTTP extends QM_Output_Html {
 
 	public function __construct( QM_Collector $collector ) {
 		parent::__construct( $collector );
-		add_filter( 'query_monitor_menus', array( $this, 'admin_menu' ), 90 );
-		add_filter( 'query_monitor_class', array( $this, 'admin_class' ) );
+		add_filter( 'qm/output/menus', array( $this, 'admin_menu' ), 90 );
+		add_filter( 'qm/output/menu_class', array( $this, 'admin_class' ) );
 	}
 
 	public function output() {
@@ -29,17 +28,18 @@ class QM_Output_Html_HTTP extends QM_Output_Html {
 
 		$total_time = 0;
 
-		echo '<div class="qm" id="' . $this->collector->id() . '">';
-		echo '<table cellspacing="0">';
+		echo '<div class="qm" id="' . esc_attr( $this->collector->id() ) . '">';
+		echo '<table cellspacing="0" class="qm-sortable">';
 		echo '<thead>';
 		echo '<tr>';
-		echo '<th>' . __( 'HTTP Request', 'query-monitor' ) . '</th>';
-		echo '<th>' . __( 'Response', 'query-monitor' ) . '</th>';
-		echo '<th>' . __( 'Transport', 'query-monitor' ) . '</th>';
-		echo '<th>' . __( 'Call Stack', 'query-monitor' ) . '</th>';
-		echo '<th>' . __( 'Component', 'query-monitor' ) . '</th>';
-		echo '<th>' . __( 'Timeout', 'query-monitor' ) . '</th>';
-		echo '<th>' . __( 'Time', 'query-monitor' ) . '</th>';
+		echo '<th class="qm-sorted-asc">&nbsp;' . $this->build_sorter() . '</th>';
+		echo '<th scope="col">' . __( 'HTTP Request', 'query-monitor' ) . '</th>';
+		echo '<th scope="col">' . __( 'Response', 'query-monitor' ) . $this->build_filter( 'type', array_keys( $data['types'] ) ) . '</th>';
+		echo '<th scope="col">' . __( 'Transport', 'query-monitor' ) . '</th>';
+		echo '<th scope="col">' . __( 'Call Stack', 'query-monitor' ) . '</th>';
+		echo '<th scope="col">' . __( 'Component', 'query-monitor' ) . $this->build_filter( 'component', wp_list_pluck( $data['component_times'], 'component' ) ) . '</th>';
+		echo '<th scope="col" class="qm-num">' . __( 'Timeout', 'query-monitor' ) . $this->build_sorter() . '</th>';
+		echo '<th scope="col" class="qm-num">' . __( 'Time', 'query-monitor' ) . $this->build_sorter() . '</th>';
 		echo '</tr>';
 		echo '</thead>';
 
@@ -50,63 +50,80 @@ class QM_Output_Html_HTTP extends QM_Output_Html {
 			foreach ( $data['vars'] as $key => $value ) {
 				$vars[] = $key . ': ' . esc_html( $value );
 			}
-			$vars = implode( ', ', $vars );
+			$vars = implode( '<br>', $vars );
 		}
 
 		if ( !empty( $data['http'] ) ) {
 
 			echo '<tbody>';
+			$i = 0;
 
 			foreach ( $data['http'] as $key => $row ) {
 				$ltime = $row['ltime'];
-				$total_time += $ltime;
+				$i++;
 
-				if ( empty( $ltime ) )
+				$row_attr = array();
+
+				if ( empty( $ltime ) ) {
 					$stime = '';
-				else
+				} else {
 					$stime = number_format_i18n( $ltime, 4 );
+				}
 
 				if ( is_wp_error( $row['response'] ) ) {
-					$response = $row['response']->get_error_message();
+					$response = esc_html( $row['response']->get_error_message() );
 					$css      = 'qm-warn';
 				} else {
 					$response = wp_remote_retrieve_response_code( $row['response'] );
 					$msg      = wp_remote_retrieve_response_message( $row['response'] );
 					$css      = '';
 
-					if ( empty( $response ) )
+					if ( empty( $response ) ) {
 						$response = __( 'n/a', 'query-monitor' );
-					else
+					} else {
 						$response = esc_html( $response . ' ' . $msg );
+					}
 
-					if ( intval( $response ) >= 400 )
+					if ( intval( $response ) >= 400 ) {
 						$css = 'qm-warn';
+					}
 
 				}
 
 				$method = $row['args']['method'];
-				if ( !$row['args']['blocking'] )
+				if ( !$row['args']['blocking'] ) {
 					$method .= '&nbsp;' . _x( '(non-blocking)', 'non-blocking HTTP transport', 'query-monitor' );
+				}
 				$url = self::format_url( $row['url'] );
 
-				if ( isset( $row['transport'] ) )
+				if ( isset( $row['transport'] ) ) {
 					$transport = $row['transport'];
-				else
+				} else {
 					$transport = '';
+				}
 
 				$stack     = $row['trace']->get_stack();
-				$component = $row['trace']->get_component();
+				$component = $row['component'];
+
+				$row_attr['data-qm-component'] = $component->name;
+				$row_attr['data-qm-type']      = $row['type'];
+
+				$attr = '';
+				foreach ( $row_attr as $a => $v ) {
+					$attr .= ' ' . $a . '="' . esc_attr( $v ) . '"';
+				}
 
 				$stack = implode( '<br>', $stack );
 				echo "
-					<tr class='{$css}'>\n
-						<td valign='top' class='qm-url qm-ltr'>{$method}<br>{$url}</td>\n
+					<tr{$attr} class='{$css}'>\n
+						<td valign='top' class='qm-num'>{$i}</td>
+						<td valign='top' class='qm-url qm-ltr qm-wrap'>{$method}<br>{$url}</td>\n
 						<td valign='top'>{$response}</td>\n
 						<td valign='top'>{$transport}</td>\n
-						<td valign='top' class='qm-ltr'>{$stack}</td>\n
-						<td valign='top'>{$component->name}</td>\n
-						<td valign='top'>{$row['args']['timeout']}</td>\n
-						<td valign='top'>{$stime}</td>\n
+						<td valign='top' class='qm-nowrap qm-ltr'>{$stack}</td>\n
+						<td valign='top' class='qm-nowrap'>{$component->name}</td>\n
+						<td valign='top' class='qm-num'>{$row['args']['timeout']}</td>\n
+						<td valign='top' class='qm-num'>{$stime}</td>\n
 					</tr>\n
 				";
 			}
@@ -114,11 +131,11 @@ class QM_Output_Html_HTTP extends QM_Output_Html {
 			echo '</tbody>';
 			echo '<tfoot>';
 
-			$total_stime = number_format_i18n( $total_time, 4 );
+			$total_stime = number_format_i18n( $data['ltime'], 4 );
 
 			echo '<tr>';
-			echo '<td colspan="6">' . $vars . '</td>';
-			echo "<td>{$total_stime}</td>";
+			echo '<td colspan="7">' . $vars . '</td>';
+			echo "<td class='qm-num'>{$total_stime}</td>";
 			echo '</tr>';
 			echo '</tfoot>';
 
@@ -126,11 +143,11 @@ class QM_Output_Html_HTTP extends QM_Output_Html {
 
 			echo '<tbody>';
 			echo '<tr>';
-			echo '<td colspan="7" style="text-align:center !important"><em>' . __( 'none', 'query-monitor' ) . '</em></td>';
+			echo '<td colspan="8" style="text-align:center !important"><em>' . __( 'none', 'query-monitor' ) . '</em></td>';
 			echo '</tr>';
 			if ( !empty( $vars ) ) {
 				echo '<tr>';
-				echo '<td colspan="7">' . $vars . '</td>';
+				echo '<td colspan="8">' . $vars . '</td>';
 				echo '</tr>';
 			}
 			echo '</tbody>';
@@ -146,10 +163,11 @@ class QM_Output_Html_HTTP extends QM_Output_Html {
 
 		$data = $this->collector->get_data();
 
-		if ( isset( $data['errors']['error'] ) )
+		if ( isset( $data['errors']['error'] ) ) {
 			$class[] = 'qm-error';
-		else if ( isset( $data['errors']['warning'] ) )
+		} else if ( isset( $data['errors']['warning'] ) ) {
 			$class[] = 'qm-warning';
+		}
 
 		return $class;
 
@@ -169,10 +187,11 @@ class QM_Output_Html_HTTP extends QM_Output_Html {
 			'title' => sprintf( $title, number_format_i18n( $count ) ),
 		);
 
-		if ( isset( $data['errors']['error'] ) )
+		if ( isset( $data['errors']['error'] ) ) {
 			$args['meta']['classname'] = 'qm-error';
-		else if ( isset( $data['errors']['warning'] ) )
+		} else if ( isset( $data['errors']['warning'] ) ) {
 			$args['meta']['classname'] = 'qm-warning';
+		}
 
 		$menu[] = $this->menu( $args );
 
@@ -182,8 +201,11 @@ class QM_Output_Html_HTTP extends QM_Output_Html {
 
 }
 
-function register_qm_output_html_http( QM_Output $output = null, QM_Collector $collector ) {
-	return new QM_Output_Html_HTTP( $collector );
+function register_qm_output_html_http( array $output, QM_Collectors $collectors ) {
+	if ( $collector = $collectors::get( 'http' ) ) {
+		$output['http'] = new QM_Output_Html_HTTP( $collector );
+	}
+	return $output;
 }
 
-add_filter( 'query_monitor_output_html_http', 'register_qm_output_html_http', 10, 2 );
+add_filter( 'qm/outputter/html', 'register_qm_output_html_http', 90, 2 );

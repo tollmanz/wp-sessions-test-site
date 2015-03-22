@@ -1,7 +1,6 @@
 <?php
 /*
-
-Copyright 2014 John Blackbourn
+Copyright 2009-2015 John Blackbourn
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,22 +18,24 @@ class QM_Output_Html_Transients extends QM_Output_Html {
 
 	public function __construct( QM_Collector $collector ) {
 		parent::__construct( $collector );
-		add_filter( 'query_monitor_menus',   array( $this, 'admin_menu' ), 80 );
+		add_filter( 'qm/output/menus', array( $this, 'admin_menu' ), 100 );
 	}
 
 	public function output() {
 
 		$data = $this->collector->get_data();
 
-		echo '<div class="qm" id="' . $this->collector->id() . '">';
+		echo '<div class="qm" id="' . esc_attr( $this->collector->id() ) . '">';
 		echo '<table cellspacing="0">';
 		echo '<thead>';
 		echo '<tr>';
 		echo '<th>' . __( 'Transient Set', 'query-monitor' ) . '</th>';
-		if ( is_multisite() )
+		if ( is_multisite() ) {
 			echo '<th>' . __( 'Type', 'query-monitor' ) . '</th>';
-		if ( !empty( $data['trans'] ) and isset( $data['trans'][0]['expiration'] ) )
+		}
+		if ( !empty( $data['trans'] ) and isset( $data['trans'][0]['expiration'] ) ) {
 			echo '<th>' . __( 'Expiration', 'query-monitor' ) . '</th>';
+		}
 		echo '<th>' . __( 'Call Stack', 'query-monitor' ) . '</th>';
 		echo '<th>' . __( 'Component', 'query-monitor' ) . '</th>';
 		echo '</tr>';
@@ -51,8 +52,9 @@ class QM_Output_Html_Transients extends QM_Output_Html {
 					'_transient_'
 				), '', $row['transient'] );
 				$type = ( is_multisite() ) ? "<td valign='top'>{$row['type']}</td>\n" : '';
-				if ( 0 === $row['expiration'] )
+				if ( 0 === $row['expiration'] ) {
 					$row['expiration'] = '<em>' . __( 'none', 'query-monitor' ) . '</em>';
+				}
 				$expiration = ( isset( $row['expiration'] ) ) ? "<td valign='top'>{$row['expiration']}</td>\n" : '';
 
 				$component = $row['trace']->get_component();
@@ -63,8 +65,8 @@ class QM_Output_Html_Transients extends QM_Output_Html {
 						<td valign='top'>{$transient}</td>\n
 						{$type}
 						{$expiration}
-						<td valign='top' class='qm-ltr'>{$stack}</td>\n
-						<td valign='top'>{$component->name}</td>\n
+						<td valign='top' class='qm-nowrap qm-ltr'>{$stack}</td>\n
+						<td valign='top' class='qm-nowrap'>{$component->name}</td>\n
 					</tr>\n
 				";
 			}
@@ -104,8 +106,11 @@ class QM_Output_Html_Transients extends QM_Output_Html {
 
 }
 
-function register_qm_output_html_transients( QM_Output $output = null, QM_Collector $collector ) {
-	return new QM_Output_Html_Transients( $collector );
+function register_qm_output_html_transients( array $output, QM_Collectors $collectors ) {
+	if ( $collector = $collectors::get( 'transients' ) ) {
+		$output['transients'] = new QM_Output_Html_Transients( $collector );
+	}
+	return $output;
 }
 
-add_filter( 'query_monitor_output_html_transients', 'register_qm_output_html_transients', 10, 2 );
+add_filter( 'qm/outputter/html', 'register_qm_output_html_transients', 100, 2 );

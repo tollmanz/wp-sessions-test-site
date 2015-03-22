@@ -1,7 +1,6 @@
 <?php
 /*
-
-Copyright 2014 John Blackbourn
+Copyright 2009-2015 John Blackbourn
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,13 +18,15 @@ class QM_Output_Headers_PHP_Errors extends QM_Output_Headers {
 
 	public function output() {
 
-		if ( ! QM_Util::is_ajax() )
+		if ( ! QM_Util::is_ajax() ) {
 			return;
+		}
 
 		$data = $this->collector->get_data();
 
-		if ( empty( $data['errors'] ) )
+		if ( empty( $data['errors'] ) ) {
 			return;
+		}
 
 		$count = 0;
 
@@ -40,7 +41,7 @@ class QM_Output_Headers_PHP_Errors extends QM_Output_Headers {
 				$component = $error->trace->get_component();
 				$output_error = array(
 					'type'      => $error->type,
-					'message'   => $error->message,
+					'message'   => wp_strip_all_tags( $error->message ),
 					'file'      => $error->file,
 					'line'      => $error->line,
 					'stack'     => $error->trace->get_stack(),
@@ -64,8 +65,11 @@ class QM_Output_Headers_PHP_Errors extends QM_Output_Headers {
 
 }
 
-function register_qm_output_headers_php_errors( QM_Output $output = null, QM_Collector $collector ) {
-	return new QM_Output_Headers_PHP_Errors( $collector );
+function register_qm_output_headers_php_errors( array $output, QM_Collectors $collectors ) {
+	if ( $collector = $collectors::get( 'php_errors' ) ) {
+		$output['php_errors'] = new QM_Output_Headers_PHP_Errors( $collector );
+	}
+	return $output;
 }
 
-add_filter( 'query_monitor_output_headers_php_errors', 'register_qm_output_headers_php_errors', 10, 2 );
+add_filter( 'qm/outputter/headers', 'register_qm_output_headers_php_errors', 110, 2 );

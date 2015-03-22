@@ -1,7 +1,6 @@
 <?php
 /*
-
-Copyright 2014 John Blackbourn
+Copyright 2009-2015 John Blackbourn
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,7 +18,7 @@ class QM_Output_Html_Overview extends QM_Output_Html {
 
 	public function __construct( QM_Collector $collector ) {
 		parent::__construct( $collector );
-		add_filter( 'query_monitor_title', array( $this, 'admin_title' ), 10 );
+		add_filter( 'qm/output/title', array( $this, 'admin_title' ), 10 );
 	}
 
 	public function output() {
@@ -28,10 +27,10 @@ class QM_Output_Html_Overview extends QM_Output_Html {
 
 		$db_query_num   = null;
 		$db_query_types = array();
-		# @TODO: make this less derpy:
-		$db_queries     = QueryMonitor::get_collector( 'db_queries' );
+		$db_queries     = QM_Collectors::get( 'db_queries' );
 
 		if ( $db_queries ) {
+			# @TODO: make this less derpy:
 			$db_queries_data = $db_queries->get_data();
 			if ( isset( $db_queries_data['types'] ) ) {
 				$db_query_num = $db_queries_data['types'];
@@ -41,7 +40,7 @@ class QM_Output_Html_Overview extends QM_Output_Html {
 
 		$total_stime = number_format_i18n( $data['time'], 4 );
 
-		echo '<div class="qm" id="' . $this->collector->id() . '">';
+		echo '<div class="qm" id="' . esc_attr( $this->collector->id() ) . '">';
 		echo '<table cellspacing="0">';
 
 		$memory_usage = '<br><span class="qm-info">' . sprintf( __( '%1$s%% of %2$s kB limit', 'query-monitor' ), number_format_i18n( $data['memory_usage'], 1 ), number_format_i18n( $data['memory_limit'] / 1024 ) ) . '</span>';
@@ -73,8 +72,9 @@ class QM_Output_Html_Overview extends QM_Output_Html {
 			echo "<td>{$db_stime}</td>";
 			echo '<td>';
 
-			foreach ( $db_query_num as $type_name => $type_count )
+			foreach ( $db_query_num as $type_name => $type_count ) {
 				$db_query_types[] = sprintf( '%1$s: %2$s', $type_name, number_format_i18n( $type_count ) );
+			}
 
 			echo implode( '<br>', $db_query_types );
 
@@ -111,8 +111,11 @@ class QM_Output_Html_Overview extends QM_Output_Html {
 
 }
 
-function register_qm_output_html_overview( QM_Output $output = null, QM_Collector $collector ) {
-	return new QM_Output_Html_Overview( $collector );
+function register_qm_output_html_overview( array $output, QM_Collectors $collectors ) {
+	if ( $collector = $collectors::get( 'overview' ) ) {
+		$output['overview'] = new QM_Output_Html_Overview( $collector );
+	}
+	return $output;
 }
 
-add_filter( 'query_monitor_output_html_overview', 'register_qm_output_html_overview', 10, 2 );
+add_filter( 'qm/outputter/html', 'register_qm_output_html_overview', 10, 2 );
